@@ -1,17 +1,55 @@
-FROM --platform=linux/amd64 ubuntu:22.04
+FROM --platform=linux/amd64 ubuntu:25.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt update -y && apt install --no-install-recommends -y xfce4 xfce4-goodies tigervnc-standalone-server novnc websockify sudo xterm init systemd snapd vim net-tools curl wget git tzdata
-RUN apt update -y && apt install -y dbus-x11 x11-utils x11-xserver-utils x11-apps
+
+# Update and install base packages
+RUN apt update -y && apt install --no-install-recommends -y \
+    xfce4 \
+    xfce4-goodies \
+    tigervnc-standalone-server \
+    novnc \
+    websockify \
+    sudo \
+    xterm \
+    init \
+    systemd \
+    snapd \
+    vim \
+    net-tools \
+    curl \
+    wget \
+    git \
+    tzdata \
+    openssl
+
+# Install X11 related packages
+RUN apt update -y && apt install -y \
+    dbus-x11 \
+    x11-utils \
+    x11-xserver-utils \
+    x11-apps
+
+# Install software-properties-common
 RUN apt install software-properties-common -y
-RUN add-apt-repository ppa:mozillateam/ppa -y
-RUN echo 'Package: *' >> /etc/apt/preferences.d/mozilla-firefox
-RUN echo 'Pin: release o=LP-PPA-mozillateam' >> /etc/apt/preferences.d/mozilla-firefox
-RUN echo 'Pin-Priority: 1001' >> /etc/apt/preferences.d/mozilla-firefox
-RUN echo 'Unattended-Upgrade::Allowed-Origins:: "LP-PPA-mozillateam:jammy";' | tee /etc/apt/apt.conf.d/51unattended-upgrades-firefox
-RUN apt update -y && apt install -y firefox
-RUN apt update -y && apt install -y xubuntu-icon-theme
+
+# Install Firefox (Ubuntu 25.04 uses Firefox from Ubuntu repos directly or snap)
+# For 25.04, Firefox might be available directly without PPA
+RUN apt update -y && apt install -y firefox || \
+    (snap install firefox && ln -s /snap/bin/firefox /usr/local/bin/firefox)
+
+# Install icon theme
+RUN apt update -y && apt install -y xubuntu-icon-theme || \
+    apt install -y adwaita-icon-theme
+
+# Create Xauthority file
 RUN touch /root/.Xauthority
+
+# Expose VNC and noVNC ports
 EXPOSE 5901
 EXPOSE 6080
-CMD bash -c "vncserver -localhost no -SecurityTypes None -geometry 1024x768 --I-KNOW-THIS-IS-INSECURE && openssl req -new -subj "/C=JP" -x509 -days 365 -nodes -out self.pem -keyout self.pem && websockify -D --web=/usr/share/novnc/ --cert=self.pem 6080 localhost:5901 && tail -f /dev/null"
+
+# Start VNC server and websockify
+CMD bash -c "vncserver -localhost no -SecurityTypes None -geometry 1024x768 --I-KNOW-THIS-IS-INSECURE && \
+    openssl req -new -subj '/C=JP' -x509 -days 365 -nodes -out self.pem -keyout self.pem && \
+    websockify -D --web=/usr/share/novnc/ --cert=self.pem 6080 localhost:5901 && \
+    tail -f /dev/null"
