@@ -1,55 +1,29 @@
-FROM --platform=linux/amd64 ubuntu:25.04
+FROM --platform=linux/amd64 debian:12
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Update and install base packages
+# Install base packages
 RUN apt update -y && apt install --no-install-recommends -y \
-    xfce4 \
-    xfce4-goodies \
-    tigervnc-standalone-server \
-    novnc \
-    websockify \
-    sudo \
-    xterm \
-    init \
-    systemd \
-    snapd \
-    vim \
-    net-tools \
-    curl \
-    wget \
-    git \
-    tzdata \
-    openssl
+    xfce4 xfce4-goodies tigervnc-standalone-server novnc websockify \
+    sudo xterm init systemd vim net-tools curl wget git tzdata \
+    dbus-x11 x11-utils x11-xserver-utils x11-apps \
+    firefox-esr adwaita-icon-theme
 
-# Install X11 related packages
-RUN apt update -y && apt install -y \
-    dbus-x11 \
-    x11-utils \
-    x11-xserver-utils \
-    x11-apps
+# Create user mehraz with password mehraz
+RUN useradd -m -s /bin/bash mehraz && \
+    echo "mehraz:mehraz" | chpasswd && \
+    usermod -aG sudo mehraz
 
-# Install software-properties-common
-RUN apt install software-properties-common -y
+# Setup VNC for user mehraz
+USER mehraz
+WORKDIR /home/mehraz
+RUN mkdir -p /home/mehraz/.vnc && \
+    echo "mehraz" | vncpasswd -f > /home/mehraz/.vnc/passwd && \
+    chmod 600 /home/mehraz/.vnc/passwd
+RUN touch /home/mehraz/.Xauthority
 
-# Install Firefox (Ubuntu 25.04 uses Firefox from Ubuntu repos directly or snap)
-# For 25.04, Firefox might be available directly without PPA
-RUN apt update -y && apt install -y firefox || \
-    (snap install firefox && ln -s /snap/bin/firefox /usr/local/bin/firefox)
-
-# Install icon theme
-RUN apt update -y && apt install -y xubuntu-icon-theme || \
-    apt install -y adwaita-icon-theme
-
-# Create Xauthority file
-RUN touch /root/.Xauthority
-
-# Expose VNC and noVNC ports
+USER root
 EXPOSE 5901
 EXPOSE 6080
 
-# Start VNC server and websockify
-CMD bash -c "vncserver -localhost no -SecurityTypes None -geometry 1024x768 --I-KNOW-THIS-IS-INSECURE && \
-    openssl req -new -subj '/C=JP' -x509 -days 365 -nodes -out self.pem -keyout self.pem && \
-    websockify -D --web=/usr/share/novnc/ --cert=self.pem 6080 localhost:5901 && \
-    tail -f /dev/null"
+CMD bash -c "su - mehraz -c 'vncserver -localhost no -geometry 1024x768 :1' && openssl req -new -subj '/C=US' -x509 -days 365 -nodes -out /tmp/self.pem -keyout /tmp/self.pem && websockify -D --web=/usr/share/novnc/ --cert=/tmp/self.pem 6080 localhost:5901 && tail -f /dev/null"
