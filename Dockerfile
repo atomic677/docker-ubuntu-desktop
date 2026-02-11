@@ -15,14 +15,11 @@ RUN useradd -m -s /bin/bash mehraz && \
     usermod -aG sudo mehraz
 
 # Setup VNC for user mehraz
-USER mehraz
-WORKDIR /home/mehraz
 RUN mkdir -p /home/mehraz/.vnc && \
-    echo "mehraz" | vncpasswd -f > /home/mehraz/.vnc/passwd && \
-    chmod 600 /home/mehraz/.vnc/passwd
-RUN touch /home/mehraz/.Xauthority
-
-USER root
+    echo "mehraz" | /usr/bin/vncpasswd -f > /home/mehraz/.vnc/passwd && \
+    chmod 600 /home/mehraz/.vnc/passwd && \
+    touch /home/mehraz/.Xauthority && \
+    chown -R mehraz:mehraz /home/mehraz
 EXPOSE 5901
 EXPOSE 6080
 
